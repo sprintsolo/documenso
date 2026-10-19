@@ -46,6 +46,16 @@ type GenericLocalField = TEnvelope['fields'][number] & {
   recipient: Pick<Recipient, 'id' | 'name' | 'email' | 'signingStatus'>;
 };
 
+type FieldWithSignature = Field & { signature?: Signature | null };
+
+/**
+ * Re-signing a signed field keeps `inserted` and `customText` unchanged, so the signature itself
+ * has to be compared for the new signature to be redrawn.
+ */
+const hasSignatureChanged = (cachedField: FieldWithSignature, field: FieldWithSignature) =>
+  cachedField.signature?.signatureImageAsBase64 !== field.signature?.signatureImageAsBase64 ||
+  cachedField.signature?.typedSignature !== field.signature?.typedSignature;
+
 export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderData }) => {
   const { t, i18n } = useLingui();
   const { currentEnvelopeItem, setRenderError } = useCurrentEnvelopeRender();
@@ -381,6 +391,8 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
             field,
             fullName: fullName.current,
             signature: signature.current,
+            currentSignature:
+              unparsedField.signature?.signatureImageAsBase64 ?? unparsedField.signature?.typedSignature ?? null,
             typedSignatureEnabled: envelope.documentMeta.typedSignatureEnabled,
             uploadSignatureEnabled: envelope.documentMeta.uploadSignatureEnabled,
             drawSignatureEnabled: envelope.documentMeta.drawSignatureEnabled,
@@ -447,7 +459,8 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
         !isFieldCurrentlyRendered ||
         !existingCachedField ||
         existingCachedField.inserted !== field.inserted ||
-        existingCachedField.customText !== field.customText
+        existingCachedField.customText !== field.customText ||
+        hasSignatureChanged(existingCachedField, field)
       ) {
         renderFieldOnLayer(field, fieldCanvasStyleCache);
         cachedRenderFields.current.set(field.id, field);

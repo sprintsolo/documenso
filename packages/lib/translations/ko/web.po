@@ -2887,7 +2887,7 @@ msgstr "클레임"
 
 #: apps/remix/app/components/general/filter-pill.tsx
 msgid "Clear"
-msgstr ""
+msgstr "지우기"
 
 #: packages/ui/primitives/data-table.tsx
 msgid "Clear filters"

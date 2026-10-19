@@ -18,6 +18,8 @@ import { createCallable } from 'react-call';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { SIGN_FIELD_DIALOG_CLEARED } from './sign-field-dialog-result';
+
 const ZSignFieldTextFormSchema = z.object({
   text: z.string().min(1, { message: msg`Text is required`.id }),
 });
@@ -26,15 +28,18 @@ type TSignFieldTextFormSchema = z.infer<typeof ZSignFieldTextFormSchema>;
 
 export type SignFieldTextDialogProps = {
   fieldMeta?: TTextFieldMeta;
+  initialText?: string;
+  allowClear?: boolean;
 };
 
-export const SignFieldTextDialog = createCallable<SignFieldTextDialogProps, string | null>(({ call, fieldMeta }) => {
+export const SignFieldTextDialog = createCallable<SignFieldTextDialogProps, string | null>(({ call, ...props }) => {
+  const { fieldMeta, initialText, allowClear } = props;
   const { t } = useLingui();
 
   const form = useForm<TSignFieldTextFormSchema>({
     resolver: zodResolver(ZSignFieldTextFormSchema),
     defaultValues: {
-      text: '',
+      text: initialText ?? '',
     },
   });
 
@@ -83,6 +88,18 @@ export const SignFieldTextDialog = createCallable<SignFieldTextDialogProps, stri
               />
 
               <DialogFooter>
+                {allowClear && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="sm:mr-auto"
+                    data-testid="sign-field-clear-button"
+                    onClick={() => call.end(SIGN_FIELD_DIALOG_CLEARED)}
+                  >
+                    <Trans>Clear</Trans>
+                  </Button>
+                )}
+
                 <Button type="button" variant="secondary" onClick={() => call.end(null)}>
                   <Trans>Cancel</Trans>
                 </Button>

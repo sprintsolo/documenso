@@ -6,9 +6,11 @@ import { useState } from 'react';
 import { createCallable } from 'react-call';
 
 import { DocumentSigningDisclosure } from '../general/document-signing/document-signing-disclosure';
+import { SIGN_FIELD_DIALOG_CLEARED } from './sign-field-dialog-result';
 
 export type SignFieldSignatureDialogProps = {
   initialSignature?: string;
+  allowClear?: boolean;
   fullName?: string;
   typedSignatureEnabled?: boolean;
   uploadSignatureEnabled?: boolean;
@@ -16,7 +18,15 @@ export type SignFieldSignatureDialogProps = {
 };
 
 export const SignFieldSignatureDialog = createCallable<SignFieldSignatureDialogProps, string | null>(
-  ({ call, fullName, typedSignatureEnabled, uploadSignatureEnabled, drawSignatureEnabled, initialSignature }) => {
+  ({
+    call,
+    fullName,
+    typedSignatureEnabled,
+    uploadSignatureEnabled,
+    drawSignatureEnabled,
+    initialSignature,
+    allowClear,
+  }) => {
     const [localSignature, setLocalSignature] = useState(initialSignature);
 
     return (
@@ -42,6 +52,18 @@ export const SignFieldSignatureDialog = createCallable<SignFieldSignatureDialogP
           <DocumentSigningDisclosure />
 
           <DialogFooter>
+            {allowClear && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="sm:mr-auto"
+                data-testid="sign-field-clear-button"
+                onClick={() => call.end(SIGN_FIELD_DIALOG_CLEARED)}
+              >
+                <Trans>Clear</Trans>
+              </Button>
+            )}
+
             <Button type="button" variant="secondary" onClick={() => call.end(null)}>
               <Trans>Cancel</Trans>
             </Button>

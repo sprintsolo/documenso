@@ -3,6 +3,7 @@ import type { TFieldText } from '@documenso/lib/types/field';
 import type { TSignEnvelopeFieldValue } from '@documenso/trpc/server/envelope-router/sign-envelope-field.types';
 import { FieldType } from '@prisma/client';
 
+import { SIGN_FIELD_DIALOG_CLEARED } from '~/components/dialogs/sign-field-dialog-result';
 import { SignFieldTextDialog } from '~/components/dialogs/sign-field-text-dialog';
 
 type HandleTextFieldClickOptions = {
@@ -21,10 +22,21 @@ export const handleTextFieldClick = async (
     });
   }
 
+  // An entered field opens the dialog prefilled with its current text so it can be edited in place.
   if (field.inserted) {
+    const editedText = await SignFieldTextDialog.call({
+      fieldMeta: field.fieldMeta,
+      initialText: field.customText,
+      allowClear: true,
+    });
+
+    if (editedText === null) {
+      return null;
+    }
+
     return {
       type: FieldType.TEXT,
-      value: null,
+      value: editedText === SIGN_FIELD_DIALOG_CLEARED ? null : editedText,
     };
   }
 
