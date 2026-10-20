@@ -14,7 +14,7 @@ const seedSigningRecipient = async () => {
   const { recipients } = await seedPendingDocumentWithFullFields({
     owner: user,
     recipients: ['click-to-edit@test.documenso.com'],
-    fields: [FieldType.SIGNATURE, FieldType.TEXT, FieldType.DATE],
+    fields: [FieldType.SIGNATURE, FieldType.SIGNATURE, FieldType.TEXT, FieldType.DATE],
     updateDocumentOptions: { internalVersion: 2 },
     teamId: team.id,
   });
@@ -31,9 +31,12 @@ const seedSigningRecipient = async () => {
     return field;
   };
 
+  const [signatureField, secondSignatureField] = recipient.fields.filter((f) => f.type === FieldType.SIGNATURE);
+
   return {
     recipient,
-    signatureField: fieldOfType(FieldType.SIGNATURE),
+    signatureField,
+    secondSignatureField,
     textField: fieldOfType(FieldType.TEXT),
     dateField: fieldOfType(FieldType.DATE),
   };
@@ -75,6 +78,24 @@ const expectTypedSignature = async (fieldId: number, typedSignature: string | nu
 
     expect(signature?.typedSignature ?? null).toBe(typedSignature);
   }).toPass({ timeout: 10_000 });
+};
+
+const countFieldSignRequests = (page: Page) => {
+  const counter = { count: 0 };
+
+  page.on('request', (request) => {
+    if (request.url().includes('envelope.field.sign')) {
+      counter.count += 1;
+    }
+  });
+
+  return counter;
+};
+
+// A click that should change nothing sends no request, so wait long enough for one to have been sent.
+const expectNoFieldSignRequest = async (page: Page, counter: { count: number }) => {
+  await page.waitForTimeout(1_000);
+  expect(counter.count).toBe(0);
 };
 
 const openSigningPage = async (page: Page, token: string) => {
@@ -125,6 +146,29 @@ test('[CLICK_TO_EDIT]: signed signature field opens a prefilled dialog and overw
   await expect(dialog.getByTestId('signature-pad-type-input')).toHaveValue('Edited Signature');
 });
 
+test('[CLICK_TO_EDIT]: edit dialog is prefilled with that field signature, not the saved one', async ({ page }) => {
+  const { recipient, signatureField, secondSignatureField } = await seedSigningRecipient();
+
+  await openSigningPage(page, recipient.token);
+  await insertSavedSignature(page, signatureField);
+
+  await clickField(page, secondSignatureField);
+  await expectTypedSignature(secondSignatureField.id, 'Signature');
+
+  // Overwriting the second field also replaces the saved signature.
+  await clickField(page, secondSignatureField);
+
+  const dialog = signatureDialog(page);
+  await dialog.getByRole('tab', { name: 'Type' }).click();
+  await dialog.getByTestId('signature-pad-type-input').fill('Edited Signature');
+  await dialog.getByRole('button', { name: 'Sign', exact: true }).click();
+  await expectTypedSignature(secondSignatureField.id, 'Edited Signature');
+
+  await clickField(page, signatureField);
+  await dialog.getByRole('tab', { name: 'Type' }).click();
+  await expect(dialog.getByTestId('signature-pad-type-input')).toHaveValue('Signature');
+});
+
 test('[CLICK_TO_EDIT]: cancelling the edit dialog keeps the signed signature', async ({ page }) => {
   const { recipient, signatureField } = await seedSigningRecipient();
 
@@ -135,8 +179,11 @@ test('[CLICK_TO_EDIT]: cancelling the edit dialog keeps the signed signature', a
 
   const dialog = signatureDialog(page);
   await expect(dialog).toBeVisible();
+
+  const signRequests = countFieldSignRequests(page);
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toHaveCount(0);
+  await expectNoFieldSignRequest(page, signRequests);
 
   await expectFieldState(signatureField.id, { inserted: true });
   await expectTypedSignature(signatureField.id, 'Signature');
@@ -178,6 +225,27 @@ test('[CLICK_TO_EDIT]: entered text field opens a prefilled dialog and overwrite
   await expectFieldState(textField.id, { inserted: true, customText: 'Second value' });
 });
 
+test('[CLICK_TO_EDIT]: cancelling the text dialog keeps the entered text', async ({ page }) => {
+  const { recipient, textField } = await seedSigningRecipient();
+
+  await openSigningPage(page, recipient.token);
+
+  await clickField(page, textField);
+  await page.getByRole('dialog').getByRole('textbox').fill('First value');
+  await page.getByRole('dialog').getByRole('button', { name: 'Enter' }).click();
+  await expectFieldState(textField.id, { inserted: true, customText: 'First value' });
+
+  await clickField(page, textField);
+  await expect(page.getByRole('dialog').getByRole('textbox')).toHaveValue('First value');
+
+  const signRequests = countFieldSignRequests(page);
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expectNoFieldSignRequest(page, signRequests);
+
+  await expectFieldState(textField.id, { inserted: true, customText: 'First value' });
+});
+
 test('[CLICK_TO_EDIT]: clear in the text dialog removes the text', async ({ page }) => {
   const { recipient, textField } = await seedSigningRecipient();
 
@@ -194,13 +262,15 @@ test('[CLICK_TO_EDIT]: clear in the text dialog removes the text', async ({ page
   await expectFieldState(textField.id, { inserted: false });
 });
 
-test('[CLICK_TO_EDIT]: date field stays prefilled and read only', async ({ page }) => {
+test('[CLICK_TO_EDIT]: clicking the date field opens no dialog and writes nothing', async ({ page }) => {
   const { recipient, dateField } = await seedSigningRecipient();
 
   await openSigningPage(page, recipient.token);
 
+  const signRequests = countFieldSignRequests(page);
   await clickField(page, dateField);
 
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expectNoFieldSignRequest(page, signRequests);
   await expectFieldState(dateField.id, { inserted: false });
 });
