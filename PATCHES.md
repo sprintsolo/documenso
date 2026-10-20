@@ -13,7 +13,7 @@ This branch (`clara/ci`) contains only this file and the image build workflow. T
 | Release tag | `v2.17.0-clara.1` → `5a3ecdc7` (patch 1 only; built before patch 2 existed) |
 | Image | `ghcr.io/sprintsolo/documenso:v2.17.0-clara.1` (linux/amd64) |
 
-The next release tag on any `clara/v*` branch must include both commits below.
+The next release tag on any `clara/v*` branch must include both patches below.
 
 ## Patches
 
@@ -24,7 +24,7 @@ Commit: `feat(clara): edit signed signature/text fields on click` on `clara/v2.1
 - **Problem:** in the envelope (v2) signing view, clicking a signed signature field or an entered text field cleared it. Changing a value took a clear click plus a second click, and for signatures the sidebar signature had to be edited first.
 - **Change:** signed fields open their dialog prefilled with the current value. Sign/Enter overwrites it, Cancel keeps it, and a new Clear button removes it. Unsigned fields behave as before: the saved signature is still inserted directly. Date fields stay prefilled and read only.
 - **Fix included:** the signer renderer redrew a field only when `inserted` or `customText` changed, so an overwritten signature stayed on screen. The render cache now also compares the signature value.
-- **Test:** `packages/app-tests/e2e/envelopes/envelope-signing-click-to-edit.spec.ts`.
+- **Test:** `packages/app-tests/e2e/envelopes/envelope-signing-click-to-edit.spec.ts`. On `clara/v2.17.0` the spec was tightened afterwards by a test-only commit, `test(clara): lock cancel, per-field prefill and no-write clicks in click-to-edit e2e` (`995e0c51`). It is part of patch 1: squash it into the product commit when moving to a new upstream release.
 - **Files:** `apps/remix/app/utils/field-signing/{signature,text}-field.ts`, `apps/remix/app/components/dialogs/sign-field-{signature,text}-dialog.tsx`, `apps/remix/app/components/dialogs/sign-field-dialog-result.ts`, `apps/remix/app/components/general/envelope-signing/envelope-signer-page-renderer.tsx`, `packages/lib/translations/ko/web.po`.
 
 ### 2. Remove upstream workflows (fork hygiene)
